@@ -48,7 +48,7 @@ server <- function(input, output) {
 
   output$plot <- renderPlot({
 
-    chartSeries(dataInput(), theme = chartTheme("white"),
+    chartSeries(name = input$var, dataInput(), theme = chartTheme("white"),
                 type = "line", log.scale = input$log, TA = NULL)
   })
 

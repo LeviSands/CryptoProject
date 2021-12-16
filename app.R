@@ -1,3 +1,5 @@
+# Code comes from https://shiny.rstudio.com/tutorial/written-tutorial/lesson6/
+
 # Load packages ----
 library(shiny)
 library(quantmod)

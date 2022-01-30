@@ -1,0 +1,230 @@
+---
+title: "Data Source"
+author: "Levi Sands"
+date: "10/26/2021"
+output: html_document
+---
+
+## For our main source of data we are using a dataset on cryptocurrency market trends that we have found from https://www.kaggle.com/jessevent/all-crypto-currencies?ref=hackernoon.com . This dataset contains over 1,500 cryptocurrencies, their market opening and closing prices from 2013-2018, and other market trends involving their trade price.
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(splines)
+library(ISLR)
+library(shiny)
+```
+
+```{r}
+crypto_data <- read.csv("crypto-markets.csv")
+```
+
+
+```{r}
+aapl <- read.csv("AAPL.csv")
+amzn <- read.csv("AMZN.csv")
+fb <- read.csv("FB.csv")
+googl <- read.csv("GOOGL.csv")
+msft <- read.csv("MSFT.csv")
+```
+
+
+```{r}
+aapl_col <- aapl$Close
+aapl$aapl_close_change <- 100*(aapl_col - lag(aapl_col))/lag(aapl_col)
+aapl <- aapl[-1,]
+```
+
+```{r}
+amzn_col <- amzn$Close
+amzn$amzn_close_change <- 100*(amzn_col - lag(amzn_col))/lag(amzn_col)
+amzn <- amzn[-1,]
+
+fb_col <- fb$Close
+fb$fb_close_change <- 100*(fb_col - lag(fb_col))/lag(fb_col)
+fb <- fb[-1,]
+
+googl_col <- googl$Close
+googl$googl_close_change <- 100*(googl_col - lag(googl_col))/lag(googl_col)
+googl <- googl[-1,]
+
+msft_col <- msft$Close
+msft$msft_close_change <- 100*(msft_col - lag(msft_col))/lag(msft_col)
+msft <- msft[-1,]
+```
+
+```{r}
+merged_1 <- merge(aapl,amzn,by="Date")
+merged_2 <- merge(merged_1, fb, by="Date")
+merged_3 <- merge(merged_2, googl, by="Date")
+merged_4 <- merge(merged_3, msft, by="Date")
+tech_stocks <- merged_4 %>% select(Date, aapl_close_change, amzn_close_change, fb_close_change, googl_close_change, msft_close_change)
+```
+
+
+```{r}
+bitcoin <- crypto_data %>%
+  filter(name == "Bitcoin") %>%
+  rename(Date = date)
+
+btc_close <- bitcoin$close
+bitcoin$btc_percent_close_change <- 100*(btc_close - lag(btc_close))/lag(btc_close)
+
+col_values <- bitcoin$market
+bitcoin$btc_percent_market_change <- 100*(col_values - lag(col_values))/lag(col_values)
+bitcoin <- bitcoin[-1,]
+
+bitcoin <- bitcoin %>%
+  select(Date, btc_percent_market_change, btc_percent_close_change)
+```
+
+```{r}
+bitcoin_tech <- merge(x = tech_stocks, y = bitcoin, by = "Date")
+bitcoin_tech$positive <- as.integer(bitcoin_tech$btc_percent_close_change > 0)
+```
+
+```{r}
+btc_lm = lm(btc_percent_market_change ~ aapl_close_change + amzn_close_change + fb_close_change + googl_close_change + msft_close_change, data=bitcoin_tech)
+summary(btc_lm)
+```
+
+```{r}
+btc_lm_ns = lm(btc_percent_market_change ~ ns(aapl_close_change, df=3) + ns(msft_close_change, df=3), data=bitcoin_tech)
+summary(btc_lm_ns)
+```
+
+```{r}
+btc_glm = glm(positive ~ aapl_close_change + amzn_close_change + fb_close_change + googl_close_change + msft_close_change, data=bitcoin_tech)
+summary(btc_glm)
+```
+
+
+```{r}
+ethereum <- crypto_data %>%
+  filter(name == "Ethereum") %>%
+  rename(Date = date)
+
+eth_close <- ethereum$close
+ethereum$eth_percent_close_change <- 100*(eth_close - lag(eth_close))/lag(eth_close)
+
+eth_market <- ethereum$market
+ethereum$eth_percent_market_change <- 100*(eth_market - lag(eth_market))/lag(eth_market)
+ethereum <- ethereum[-1,]
+
+ethereum <- ethereum %>%
+  select(Date, eth_percent_market_change, eth_percent_close_change)
+```
+
+
+```{r}
+xrp <- crypto_data %>%
+  filter(name == "XRP") %>%
+  rename(Date = date)
+
+xrp_close <- xrp$close
+xrp$xrp_percent_close_change <- 100*(xrp_close - lag(xrp_close))/lag(xrp_close)
+
+xrp_market <- xrp$market
+xrp$xrp_percent_market_change <- 100*(xrp_market - lag(xrp_market))/lag(xrp_market)
+xrp <- xrp[-1,]
+
+xrp <- xrp %>%
+  select(Date, xrp_percent_market_change, xrp_percent_close_change)
+```
+
+
+```{r}
+df <- read_csv("crypto-markets.csv")
+poly_2017 <- df %>% 
+  mutate(year=year(date))
+```
+
+
+```{r}
+# seperate bitcoin and calculate percent market change and remove first na row
+bitcoin_poly_2017 <- poly_2017 %>%
+  filter(name == "Bitcoin")
+
+col_values <- bitcoin_poly_2017$market
+bitcoin_poly_2017$btc_percent_market_change <- 100*(col_values - lag(col_values))/lag(col_values)
+bitcoin_poly_2017 <- bitcoin_poly_2017[-1,]
+head(bitcoin_poly_2017)
+```
+
+```{r}
+# seperate ethereum and calculate percent market change and remove first na row
+eth_poly_2017 <- poly_2017 %>%
+  filter(name == "Ethereum")
+
+col_values <- eth_poly_2017$market
+eth_poly_2017$eth_percent_market_change <- 100*(col_values - lag(col_values))/lag(col_values)
+eth_poly_2017 <- eth_poly_2017[-1,]
+```
+
+
+```{r}
+xrp_poly_2017 <- poly_2017 %>%
+  filter(name == "XRP")
+
+col_values <- xrp_poly_2017$market
+xrp_poly_2017$xrp_percent_market_change <- 100*(col_values - lag(col_values))/lag(col_values)
+xrp_poly_2017 <- xrp_poly_2017[-1,]
+```
+
+
+```{r}
+btc_eth <- left_join(bitcoin_poly_2017, eth_poly_2017, by = "date")
+btc_eth <- btc_eth[!is.na(btc_eth$eth_percent_market_change),]
+```
+
+```{r}
+btc_eth_lm = lm(btc_percent_market_change ~ eth_percent_market_change, data=btc_eth)
+summary(btc_eth_lm)
+```
+
+```{r}
+ggplot(btc_eth, aes(x = btc_percent_market_change, y = eth_percent_market_change)) +
+  geom_point() + 
+  geom_smooth(method = 'lm') +
+  ggtitle("Daily Closing Price Change of Bitcoin and Ethereum") +
+  xlab("Bitcoin Daily Closing Price Percent Change") +
+  ylab("Ethereum Daily Closing Price Percent Change")
+```
+
+```{r}
+btc_xrp <- left_join(bitcoin_poly_2017, xrp_poly_2017, by = "date")
+btc_xrp <- btc_xrp[!is.na(btc_xrp$xrp_percent_market_change),]
+```
+
+```{r}
+btc_xrp_lm = lm(btc_percent_market_change ~ xrp_percent_market_change, data=btc_xrp)
+summary(btc_xrp_lm)
+```
+
+
+```{r warning=FALSE, message=FALSE}
+ggplot(btc_xrp, aes(x = btc_percent_market_change, y = xrp_percent_market_change)) +
+  geom_point() + 
+  geom_smooth(method = 'lm') +
+  ggtitle("Daily Closing Price Change of Bitcoin and XRP") +
+  xlab("Bitcoin Daily Closing Price Percent Change") +
+  ylab("XRP Daily Closing Price Percent Change")
+```
+
+
+```{r}
+btc_eth_xrp <- left_join(xrp_poly_2017, btc_eth, by = "date")
+btc_eth_xrp <- btc_eth_xrp[!is.na(btc_eth_xrp$xrp_percent_market_change),]
+```
+
+```{r}
+btc_all_lm = lm(btc_percent_market_change ~ eth_percent_market_change + xrp_percent_market_change, data=btc_eth_xrp)
+summary(btc_all_lm)
+```
+
+```{r}
+runGitHub("CryptoProject", "LeviSands", ref="main")
+```
+
+
